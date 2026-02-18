@@ -1,0 +1,206 @@
+{
+  "name": "Social Media Automation - Vyve",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "minutes": 0,
+              "triggerAtMinute": 0,
+              "triggerEveryHour": 2
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "query": "#marketingdigital OR #empreendedorismo OR #gestaodetrafego",
+        "maxResults": 10
+      },
+      "id": "twitter-search-1",
+      "name": "Twitter Search",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1,
+      "position": [450, 200],
+      "credentials": {
+        "twitterOAuth2Api": "twitter-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "message": [
+            {
+              "role": "system",
+              "content": "Você é um especialista em marketing digital da Vyve. Analise os tweets fornecidos e crie um post original e criativo em português (máximo 280 caracteres) baseado nas tendências. Use tom profissional mas autêntico. Inclua hashtags relevantes."
+            },
+            {
+              "role": "user",
+              "content": "Tweets encontrados:\n{{ $json.text }}\n\nCrie um post único e envolvente para compartilhar nas redes sociais da Vyve:"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "openai-generate-1",
+      "name": "OpenAI Generate Content",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [650, 200],
+      "credentials": {
+        "openAiApi": "openai-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "resource": "tweet",
+        "text": "={{ $json.choices[0].message.content }}"
+      },
+      "id": "twitter-post-1",
+      "name": "Post Twitter",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "credentials": {
+        "twitterOAuth2Api": "twitter-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "post",
+        "text": "={{ $('OpenAI Generate Content').item.json.choices[0].message.content }}",
+        "additionalFields": {}
+      },
+      "id": "facebook-post-1",
+      "name": "Post Facebook",
+      "type": "n8n-nodes-base.facebook",
+      "typeVersion": 2,
+      "position": [850, 350],
+      "credentials": {
+        "facebookGraphApi": "facebook-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "caption": "={{ $('OpenAI Generate Content').item.json.choices[0].message.content }}"
+      },
+      "id": "instagram-post-1",
+      "name": "Post Instagram",
+      "type": "n8n-nodes-base.instagram",
+      "typeVersion": 1,
+      "position": [850, 500],
+      "credentials": {
+        "instagramGraphApi": "instagram-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "✅ Post publicado!\n\nTwitter: ✅\nFacebook: ✅\nInstagram: ✅\n\nConteúdo:\n{{ $('OpenAI Generate Content').item.json.choices[0].message.content }}",
+        "options": {}
+      },
+      "id": "telegram-notify-1",
+      "name": "Notify Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1050, 350],
+      "credentials": {
+        "telegramApi": "telegram-bot-credential"
+      }
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Twitter Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter Search": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Generate Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Generate Content": {
+      "main": [
+        [
+          {
+            "node": "Post Twitter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Facebook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Twitter": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Facebook": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Instagram": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

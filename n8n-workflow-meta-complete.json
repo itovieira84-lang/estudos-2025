@@ -1,0 +1,139 @@
+{
+  "name": "Meta Automation - Facebook & Instagram",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-meta-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "meta-automation"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "messages": {
+          "message": [
+            {
+              "role": "system",
+              "content": "Você é especialista em marketing da Vyve. Crie um post envolvente para Facebook e Instagram sobre o tema fornecido. Inclua emojis e hashtags. Mantenha amigável mas profissional."
+            },
+            {
+              "role": "user",
+              "content": "=? Tema: {{ $json.theme ?? 'Marketing Digital' }}\nTom: {{ $json.tone ?? 'Profissional' }}\n\nCrie:\n1. Texto para post (Instagram/Facebook)\n2. 5 hashtags relevantes\n3. Sugestão de CTA"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "openai-content-meta",
+      "name": "Generate Content",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [450, 300],
+      "credentials": {
+        "openAiApi": "openai-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "post",
+        "text": "=? {{ $json.choices[0].message.content }}",
+        "additionalFields": {
+          "link": "=? {{ $json.link }}"
+        }
+      },
+      "id": "facebook-post-node",
+      "name": "Post Facebook",
+      "type": "n8n-nodes-base.facebook",
+      "typeVersion": 2,
+      "position": [700, 200],
+      "credentials": {
+        "facebookGraphApi": "facebook-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "caption": "=? {{ $('Generate Content').item.json.choices[0].message.content }}",
+        "additionalFields": {}
+      },
+      "id": "instagram-post-node",
+      "name": "Post Instagram",
+      "type": "n8n-nodes-base.instagram",
+      "typeVersion": 1,
+      "position": [700, 400],
+      "credentials": {
+        "instagramGraphApi": "instagram-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=? {{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=? 📱 Posts publicados na Meta!\n\n✅ Facebook: Postado\n✅ Instagram: Postado\n\nConteúdo:\n{{ $('Generate Content').item.json.choices[0].message.content.substring(0, 200) }}...",
+        "options": {}
+      },
+      "id": "telegram-meta-confirm",
+      "name": "Notify Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [950, 300]
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Content": {
+      "main": [
+        [
+          {
+            "node": "Post Facebook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Facebook": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Instagram": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "name": "Twitter Automation Complete",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "twitter-automation"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=? {{ $json.apiUrl ?? 'https://api.twitter.com/2/tweets/search/recent' }}",
+        "authentication": "predefinedCredentialType",
+        "credentialType": "twitterOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "=? {{ $json.query ?? '#marketingdigital' }}"
+            },
+            {
+              "name": "max_results",
+              "value": "=? {{ $json.maxResults ?? '10' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-twitter-search",
+      "name": "Twitter API Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "claude-3-haiku-20240307",
+        "messages": {
+          "message": [
+            {
+              "role": "user",
+              "content": "=? Analise estes tweets sobre {{ $json.query }} e crie um post original em português:\n\n{{ JSON.stringify($json.data) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "claude-generate-1",
+      "name": "Claude Generate Post",
+      "type": "n8n-nodes-base.anthropic",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "anthropicApi": "anthropic-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process Claude response for Twitter
+const content = $json.content?.[0]?.text || $json.content;
+return {
+  json: {
+    tweetText: content?.substring(0, 280),
+    fullContent: content
+  }
+};"
+      },
+      "id": "code-process-tweet",
+      "name": "Process Tweet Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "resource": "tweet",
+        "text": "=? {{ $json.tweetText }}"
+      },
+      "id": "twitter-post-final",
+      "name": "Post to Twitter",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "twitterOAuth2Api": "twitter-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=? {{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=? 🐦 Tweet publicado!\n\n{{ $('Post to Twitter').item.json.text }}\n\nTweet ID: {{ $('Post to Twitter').item.json.id }}",
+        "options": {}
+      },
+      "id": "telegram-confirm",
+      "name": "Telegram Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1250, 300]
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Twitter API Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter API Search": {
+      "main": [
+        [
+          {
+            "node": "Claude Generate Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Generate Post": {
+      "main": [
+        [
+          {
+            "node": "Process Tweet Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Tweet Text": {
+      "main": [
+        [
+          {
+            "node": "Post to Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Twitter": {
+      "main": [
+        [
+          {
+            "node": "Telegram Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
