@@ -1,0 +1,81 @@
+{
+  "name": "Telegram AI Simples - Sem Credenciais",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "minutes": 0,
+              "triggerAtMinute": 0,
+              "triggerEveryHour": 2
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-3.5-turbo",
+        "messages": {
+          "message": [
+            {
+              "role": "system",
+              "content": "Voce e um especialista em marketing digital. Crie uma dica curta e valiosa sobre marketing (max 280 caracteres). Use emojis e hashtags."
+            },
+            {
+              "role": "user",
+              "content": "Crie uma dica de marketing digital para postar no Telegram:"
+            }
+          ]
+        }
+      },
+      "name": "OpenAI Generate",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "",
+        "text": "={{ $json.choices[0].message.content }}"
+      },
+      "name": "Send Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Generate": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
